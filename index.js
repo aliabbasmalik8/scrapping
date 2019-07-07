@@ -66,8 +66,12 @@ function caller(moreLink){
     getData(moreLink)
     .then((value)=>{
         let { jobsArr, moreLink } = value;
-        if(!value || !jobsArr || !moreLink) return;
-        moreLink = moreLink.split('=')[1];
+        if(!value || !jobsArr){
+            console.log('Something wrong with data');
+            console.log(jobsArr);
+            return;
+        }
+        // Iterate scrap data and store in db
         for(var i = 0; i < jobsArr.length; i++){
             let row = jobsArr[i];
             con.query(findByIdQuery(jobsArr[i].id), row, (err, result) => {
@@ -78,6 +82,11 @@ function caller(moreLink){
                 })
             })
         }
+        if(!moreLink){
+            console.log('More Link' + moreLink)
+            return;
+        }
+        moreLink = moreLink.split('=')[1];
         return setTimeout(()=>{caller(moreLink)},10000);
     })
 }
