@@ -4,6 +4,7 @@ const rp = require('request-promise');
 const mysql = require('mysql');
 const CronJob = require('cron').CronJob;
 const url = 'https://news.ycombinator.com/jobs?next=';
+const table = process.env.DB_TABLE;
 let moreLink = '';
 
 //set db configuration
@@ -16,18 +17,54 @@ var con = mysql.createConnection({
 
 con.connect(function(err) {
     if (err) throw err;
-    var sql = "CREATE TABLE IF NOT EXISTS jobs (id INT, adfor VARCHAR(1000), sitename VARCHAR(1000) ,address VARCHAR(255))";
+    var sql = `CREATE TABLE IF NOT EXISTS ${table} (id INT, adfor VARCHAR(1000), sitename VARCHAR(1000) ,address VARCHAR(255))`;
     con.query(sql, function (err, result) {
       if (err) throw err;
     });
 });
 
-function findByIdQuery(id){
-    return `SELECT * FROM jobs  WHERE id = ${id}`;
+function findById(id){
+    let query =  `SELECT * FROM ${table}  WHERE id = ${id}`;
+    return new Promise(function(resolve, reject){
+        con.query(query, (err, result) => {
+            if(err) reject(err);
+            resolve(result);
+        })
+    })
 }
 
-function addInTableQuery(row){
-    return `INSERT INTO scrap_jobs.jobs  (id, adfor, sitename, address) VALUES (${row.id}, '${row.adFor}', '${row.siteName}' , '${row.address}' )`;
+function addInTable(row){
+    let query = `INSERT INTO ${table}  (id, adfor, sitename, address) VALUES (${row.id}, '${row.adFor}', '${row.siteName}' , '${row.address}' )`;
+    return new Promise(function(resolve, reject){
+        con.query(query, (err, result) => {
+            if(err) reject(err);
+            resolve (result)
+        })
+    })
+}
+
+async function dbHandler(jobsArr){
+    for(var i = 0; i < jobsArr.length; i++){
+        let row = jobsArr[i];
+        let flag = await findById(jobsArr[i].id)
+            .then((res) => {
+                if(res.length === 0) return true;
+                return false;
+            })
+            .catch((err) =>{
+                return false;
+            })
+        if(!flag) return false;
+        let addInTableFlag = await addInTable(row)
+            .then((res) => {
+                return true;
+            })
+            .catch((err) =>{
+                return false;
+            })
+        if(!addInTableFlag) return false;
+    }
+    return true;
 }
 
 function getData(moreLink) {
@@ -71,25 +108,20 @@ function caller(moreLink){
             console.log(jobsArr);
             return;
         }
-        // Iterate scrap data and store in db
-        for(var i = 0; i < jobsArr.length; i++){
-            let row = jobsArr[i];
-            con.query(findByIdQuery(jobsArr[i].id), row, (err, result) => {
-                if (err) return;
-                if(result.length !== 0) return;
-                con.query(addInTableQuery(row), (err, result) => {
-                    if(err) return;
-                })
-            })
-        }
-        if(!moreLink){
-            console.log('More Link' + moreLink)
-            return;
-        }
-        moreLink = moreLink.split('=')[1];
-        return setTimeout(()=>{caller(moreLink)},10000);
+        //findbyid and save in db
+        dbHandler(jobsArr)
+        .then((res) => {
+            if(!res) return;
+            if(!moreLink){
+                console.log('More Link' + moreLink)
+                return;
+            }
+            moreLink = moreLink.split('=')[1];
+            return setTimeout(()=>{caller(moreLink)},15000);
+        })
     })
 }
+
 caller(moreLink);
 
 // for cron job please comment above line and uncomment below lines and set time accordingly 
