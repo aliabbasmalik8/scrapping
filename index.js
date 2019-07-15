@@ -4,7 +4,14 @@ const rp = require('request-promise');
 const mysql = require('mysql');
 const CronJob = require('cron').CronJob;
 const url = 'https://news.ycombinator.com/jobs?next=';
+const Job = require('./models').Job;
+
 let moreLink = '';
+
+let job = Job.findOne({where: {id: 20422053}});
+// console.log(job);
+
+
 
 //set db configuration
 var con = mysql.createConnection({
@@ -90,7 +97,7 @@ function caller(moreLink){
         return setTimeout(()=>{caller(moreLink)},10000);
     })
 }
-caller(moreLink);
+// caller(moreLink);
 
 // for cron job please comment above line and uncomment below lines and set time accordingly 
 
