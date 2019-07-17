@@ -6,6 +6,8 @@ const CronJob = require('cron').CronJob;
 const url = 'https://news.ycombinator.com/jobs?next=';
 const table = process.env.DB_TABLE;
 let firstTime = true;
+//interval time
+let intervalTime = 5000;
 //set db configuration
 var con = mysql.createConnection({
     host: process.env.DB_HOST,
@@ -40,6 +42,11 @@ function addInTable(row){
             resolve (result)
         })
     })
+}
+
+// Increase interval time for scape next page of website
+function increaseIntervalTime(){
+    intervalTime = intervalTime + 1000;
 }
 
 async function dbHandler(jobsArr){
@@ -111,6 +118,7 @@ function caller(moreLink){
             console.log('Something wrong with data');
             console.log('JobsArr'+ jobsArr);
             console.log('value'+ value);
+            //increaseIntervalTime();
             return;
         }
         //findbyid and save in db
