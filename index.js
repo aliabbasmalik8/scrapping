@@ -5,8 +5,7 @@ const mysql = require('mysql');
 const CronJob = require('cron').CronJob;
 const url = 'https://news.ycombinator.com/jobs?next=';
 const table = process.env.DB_TABLE;
-let moreLink = '';
-
+let firstTime = true;
 //set db configuration
 var con = mysql.createConnection({
     host: process.env.DB_HOST,
@@ -54,15 +53,20 @@ async function dbHandler(jobsArr){
             .catch((err) =>{
                 return false;
             })
-        if(!flag) return false;
-        let addInTableFlag = await addInTable(row)
-            .then((res) => {
-                return true;
-            })
-            .catch((err) =>{
-                return false;
-            })
-        if(!addInTableFlag) return false;
+        // logic if you want first time  all website iterate.  
+        if(!firstTime && !flag ) return false;
+        // logic if you don't want to iterate whole website for first time
+        // if(!flag) return false;
+        if(flag){
+            let addInTableFlag = await addInTable(row)
+                .then((res) => {
+                    return true;
+                })
+                .catch((err) =>{
+                    return false;
+                })
+            if(!addInTableFlag) return false;
+        }
     }
     return true;
 }
@@ -105,15 +109,18 @@ function caller(moreLink){
         let { jobsArr, moreLink } = value;
         if(!value || !jobsArr){
             console.log('Something wrong with data');
-            console.log(jobsArr);
+            console.log('JobsArr'+ jobsArr);
+            console.log('value'+ value);
             return;
         }
         //findbyid and save in db
         dbHandler(jobsArr)
         .then((res) => {
             if(!res) return;
+            // all jobs scrap if morelink is undefined or jobs less then 30
             if(!moreLink){
-                console.log('More Link' + moreLink)
+                console.log('More Link' + moreLink);
+                firstTime = false;
                 return;
             }
             moreLink = moreLink.split('=')[1];
@@ -121,11 +128,8 @@ function caller(moreLink){
         })
     })
 }
-
-caller(moreLink);
-
-// for cron job please comment above line and uncomment below lines and set time accordingly 
-
-// new CronJob('0 0 * * *', function() {
-//    caller(moreLink);
-//}, null, true, 'America/Los_Angeles');
+//run at midnight at local time
+new CronJob('0 0 0 * * *', function() {
+    let moreLink = '';
+    caller(moreLink);
+}, null, true);
